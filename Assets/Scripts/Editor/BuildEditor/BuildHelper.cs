@@ -469,13 +469,10 @@ namespace TaoTie
                 Directory.CreateDirectory(relativeDirPrefix);
             }
 
-            // if (isBuildExe || buildTarget == BuildTarget.WebGL)
+            // if (isBuildExe && HybridCLR.Editor.SettingsUtil.Enable)
             // {
-            //     if (HybridCLR.Editor.SettingsUtil.Enable)
-            //     {
-            //         HybridCLR.Editor.SettingsUtil.buildHotfixAssembliesAOT = buildHotfixAssembliesAOT;
-            //         HybridCLR.Editor.Commands.PrebuildCommand.GenerateAll();
-            //     }
+            //     HybridCLR.Editor.SettingsUtil.buildHotfixAssembliesAOT = buildHotfixAssembliesAOT;
+            //     HybridCLR.Editor.Commands.PrebuildCommand.GenerateAll();
             // }
             
             var config = Resources.Load<CDNConfig>("CDNConfig");
@@ -530,14 +527,12 @@ namespace TaoTie
                     setting.assetBundleFSEnabled = true;
                     setting.isOldBuildFormat = false;
                     setting.webglPackagePath = Path.GetFullPath("Release");
-#if !TUANJIE_1_5_OR_NEWER
-                    setting.isWebGL2 = !webgl1;
-#endif
+                    if (buildTarget == BuildTarget.WebGL) setting.isWebGL2 = !webgl1;
                 }
 
                 TTSDK.Tool.API.BuildManager.Build(TTSDK.Tool.Framework.Wasm);
                 UnityEngine.Debug.Log("完成打包");
-#elif MINIGAME_SUBPLATFORM_WEXIN
+#elif MINIGAME_SUBPLATFORM_WEIXIN
                 WeChatWASM.WXConvertCore.config.ProjectConf.relativeDST = Path.GetFullPath("Release");
                 WeChatWASM.WXConvertCore.config.ProjectConf.DST = Path.GetFullPath("Release");
                 WeChatWASM.WXConvertCore.config.ProjectConf.CDN = $"{config.DefaultHostServer}/{rename}_{platform}/";
@@ -554,9 +549,7 @@ namespace TaoTie
                         }
                     }
                 }
-#if !TUANJIE_1_5_OR_NEWER
-                WeChatWASM.WXConvertCore.config.CompileOptions.Webgl2 = !webgl1;
-#endif
+                if (buildTarget == BuildTarget.WebGL) WeChatWASM.WXConvertCore.config.CompileOptions.Webgl2 = !webgl1;
                 if (WeChatWASM.WXConvertCore.DoExport() != WeChatWASM.WXConvertCore.WXExportError.SUCCEED)
                 {
                     UnityEngine.Debug.LogError("打包失败");
@@ -661,7 +654,7 @@ namespace TaoTie
                     File.WriteAllText(newPath + "game.json", gamejStr);
                 }
             }
-#elif MINIGAME_SUBPLATFORM_WEXIN
+#elif MINIGAME_SUBPLATFORM_WEIXIN
             if (WeChatWASM.WXConvertCore.config.ProjectConf.assetLoadType == 0)
             {
                 string[] fls = Directory.GetFiles(WeChatWASM.WXConvertCore.config.ProjectConf.DST +"/webgl");
@@ -683,6 +676,13 @@ namespace TaoTie
                     txt = txt.Replace(
                         $"{YooAssetSettingsData.Setting.DefaultYooFolderName}/{Define.DefaultName}/",
                         WeChatWASM.WXConvertCore.config.ProjectConf.CDN);
+                    var preload = GetPreloadFileUrls(null, buildTarget, config, rename, platform, true);
+                    if (!string.IsNullOrEmpty(preload))
+                    {
+                        txt = txt.Replace(
+                            "// 'DATA_CDN/StreamingAssets/WebGL/textures_8d265a9dfd6cb7669cdb8b726f0afb1e',",
+                            preload);
+                    }
                     File.WriteAllText(newPath + "game.js", txt);
                 }
             }
@@ -814,7 +814,10 @@ namespace TaoTie
                     for (int i = 0; i < streamingAssets.Count; i++)
                     {
                         if(streamingAssets[i].EndsWith(".meta")) continue;
-                        preloadList.Append(Path.GetFileName(streamingAssets[i]) + ";");
+                        if(streamingAssets[i].EndsWith(".version")) continue;
+                        if(streamingAssets[i].EndsWith(".hash")) continue;
+                        if(streamingAssets[i].EndsWith(".bytes")) continue;
+                        preloadList.Append($"'{config.DefaultHostServer}/{rename}_{platform}/{Path.GetFileName(streamingAssets[i])}',");
                     }
                 }
                 
