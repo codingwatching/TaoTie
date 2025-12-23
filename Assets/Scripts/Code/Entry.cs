@@ -33,6 +33,7 @@ namespace TaoTie
                 
                 ManagerProvider.RegisterManager<I18NManager>();
                 ManagerProvider.RegisterManager<UIManager>();
+                await UIManager.Instance.OpenWindow<UILoadingView>(UILoadingView.PrefabPath);
                 
                 if(PackageManager.Instance.PlayMode == EPlayMode.HostPlayMode && (Define.Networked||Define.ForceUpdate))
                 {
@@ -58,6 +59,12 @@ namespace TaoTie
 
         static async ETTask StartGameAsync(bool configInit)
         {
+            using ListComponent<ETTask> tasks0 = ListComponent<ETTask>.Create();
+            tasks0.Add(InitSDK());
+            if (!configInit) tasks0.Add(ConfigManager.Instance.LoadAsync());
+            await ETTaskHelper.WaitAll(tasks0);
+
+            ManagerProvider.RegisterManager<PerformanceManager>();
             ManagerProvider.RegisterManager<ImageLoaderManager>();
             ManagerProvider.RegisterManager<MaterialManager>();
             ManagerProvider.RegisterManager<SceneManager>();
@@ -65,19 +72,63 @@ namespace TaoTie
             ManagerProvider.RegisterManager<InputManager>();
             ManagerProvider.RegisterManager<SoundManager>();
             GameObjectPoolManager.GetInstance().AddPersistentPrefabPath(UIToast.PrefabPath);
-            using (ListComponent<ETTask> tasks = ListComponent<ETTask>.Create())
-            {
-                if (!configInit)
-                {
-                    tasks.Add(ConfigManager.Instance.LoadAsync());
-                }
-                tasks.Add(SoundManager.Instance.InitAsync());
-                tasks.Add(GameObjectPoolManager.GetInstance().PreLoadGameObjectAsync(UIToast.PrefabPath, 1));
-                await ETTaskHelper.WaitAll(tasks);
-            }
+            using ListComponent<ETTask> tasks = ListComponent<ETTask>.Create();
+            tasks.Add(SoundManager.Instance.InitAsync());
+            tasks.Add(GameObjectPoolManager.GetInstance().PreLoadGameObjectAsync(UIToast.PrefabPath, 1));
+            await ETTaskHelper.WaitAll(tasks);
+
             await PackageManager.Instance.UnloadUnusedAssets(Define.DefaultName);
             SceneManager.Instance.SwitchScene<LoginScene>().Coroutine();
         }
+        
+        static async ETTask InitSDK()
+		{
+			ETTask task = ETTask.Create(true);
+#if MINIGAME_SUBPLATFORM_DOUYIN
+			//build setting 添加包依赖
+			TTSDK.TT.InitSDK((code, env) =>
+			{
+				task.SetResult();
+				Log.Info("TT.InitSDK " + code);
+			});
+#elif MINIGAME_SUBPLATFORM_WEIXIN
+#if UNITY_EDITOR
+			task.SetResult();
+#else
+			//build setting 添加包依赖
+			WeChatWASM.WX.InitSDK((code) =>
+			{
+				task.SetResult();
+				Log.Info("WX.InitSDK " + code);
+			});
+#endif
+#elif MINIGAME_SUBPLATFORM_KUAISHOU
+#if UNITY_EDITOR
+			task.SetResult();
+#else
+			//build setting 添加包依赖
+			KSWASM.KS.InitSDK((code) =>
+			{
+				task.SetResult();
+				Log.Info("KS.InitSDK " + code);
+			});
+#endif
+#elif MINIGAME_SUBPLATFORM_MINIHOST
+#if UNITY_EDITOR
+			task.SetResult();
+#else
+			//build setting 添加包依赖
+			minihost.TJ.InitSDK((code) =>
+			{
+				task.SetResult();
+				Log.Info("minihost.InitSDK " + code);
+			});
+#endif
+#else
+			task.SetResult();
+#endif
+			await task;
+		}
     }
     
 }
