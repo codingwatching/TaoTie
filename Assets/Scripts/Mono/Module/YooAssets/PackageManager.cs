@@ -45,10 +45,10 @@ namespace TaoTie
                 var ver = GetPackageVersion();
                 if (ver < 0 || ver < BuildInPackageConfig.PackageVer[i])
                 {
-                    PlayerPrefs.SetInt("PACKAGE_VERSION_" + name, BuildInPackageConfig.PackageVer[i]);
+                    UnityEngine.PlayerPrefs.SetInt("PACKAGE_VERSION_" + name, BuildInPackageConfig.PackageVer[i]);
                 }
             }
-            PlayerPrefs.Save();
+            UnityEngine.PlayerPrefs.Save();
 #endif
         }
 
