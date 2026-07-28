@@ -1,6 +1,6 @@
-﻿using System.Text;
-using Nino.Serialization;
-using OfficeOpenXml;
+﻿using OfficeOpenXml;
+using ProtoBuf;
+using System.Text;
 
 namespace TaoTie
 {
@@ -124,9 +124,8 @@ namespace TaoTie
             foreach (var item in list)
             {
                 string path = Path.Combine(dir, $"{item.Key}.bytes");
-                var bytes = Serializer.Serialize(item.Value);
                 using FileStream file = File.Create(path);
-                file.Write(bytes);
+                Serializer.Serialize(file, item.Value);
                 sb.AppendLine($"        {item.Key} = {index},");
                 index++;
             }
